@@ -1,0 +1,213 @@
+openapi: 3.0.3
+info:
+  title: API DUCA - Declaraciones
+  version: 1.0.0
+  description: >
+    API para autenticación (JWT), gestión de usuarios, registro y validación de declaraciones DUCA, y consulta de estados.
+servers:
+  - url: https://your-render-service.onrender.com
+paths:
+  /auth/login:
+    post:
+      summary: Iniciar sesión y obtener JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 6 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  rol: { type: string, enum: [ADMIN, TRANSPORTISTA, AGENTE] }
+        "401": { description: Credenciales inválidas }
+        "403": { description: Usuario inactivo }
+  /usuarios:
+    get:
+      summary: Listar usuarios (ADMIN)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+    post:
+      summary: Crear usuario (ADMIN)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nombre, correo, password, rol]
+              properties:
+                nombre: { type: string }
+                correo: { type: string, format: email }
+                password: { type: string, minLength: 6 }
+                rol: { type: string, enum: [ADMIN, TRANSPORTISTA, AGENTE] }
+      responses:
+        "201": { description: Creado }
+        "409": { description: Correo duplicado }
+  /usuarios/{id}:
+    put:
+      summary: Editar usuario (ADMIN)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nombre: { type: string }
+                activo: { type: boolean }
+                rol: { type: string, enum: [ADMIN, TRANSPORTISTA, AGENTE] }
+      responses:
+        "200": { description: OK }
+    delete:
+      summary: Eliminar usuario (ADMIN)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "204": { description: Eliminado }
+  /duca:
+    post:
+      summary: Registrar declaración DUCA (TRANSPORTISTA)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Duca'
+      responses:
+        "201": { description: Registrado }
+        "400": { description: Datos inválidos }
+    get:
+      summary: Listar declaraciones propias (TRANSPORTISTA)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: OK }
+  /duca/{numeroDocumento}:
+    get:
+      summary: Obtener detalle de DUCA
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: numeroDocumento
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+        "404": { description: No encontrado }
+  /validacion/pendientes:
+    get:
+      summary: Listar DUCA pendientes/en revisión (AGENTE)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: OK }
+  /validacion/{numeroDocumento}/aprobar:
+    post:
+      summary: Aprobar DUCA (AGENTE)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: numeroDocumento
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Aprobado }
+  /validacion/{numeroDocumento}/rechazar:
+    post:
+      summary: Rechazar DUCA (AGENTE)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: numeroDocumento
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                motivo: { type: string }
+      responses:
+        "200": { description: Rechazado }
+  /estados:
+    get:
+      summary: Consulta de estados (TRANSPORTISTA)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: OK }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Duca:
+      type: object
+      required: [numeroDocumento, fechaEmision, paisEmisor, estadoDocumento]
+      properties:
+        numeroDocumento: { type: string }
+        fechaEmision: { type: string, format: date }
+        paisEmisor: { type: string }
+        tipoOperacion: { type: string }
+        estadoDocumento:
+          type: string
+          enum: [PENDIENTE, EN_REVISION, VALIDADA, RECHAZADA, ANULADA]
+        moneda: { type: string }
+        valorAduanaTotal: { type: number }
+        resultadoSelectivo: { type: string }
+        firmaElectronica: { type: string }
+        importador:
+          type: object
+          properties:
+            nombre: { type: string }
+            documento: { type: string }
+            pais: { type: string }
+        exportador:
+          type: object
+          properties:
+            nombre: { type: string }
+            documento: { type: string }
+            pais: { type: string }
+        transporte:
+          type: object
+          properties:
+            medio: { type: string }
+            placa: { type: string }
+            conductor: { type: string }
+            ruta: { type: string }
+        mercancias:
+          type: array
+          items:
+            type: object
+            required: [itemNo, descripcion, cantidad]
+            properties:
+              itemNo: { type: integer }
+              descripcion: { type: string }
+              cantidad: { type: number }
+              unidad: { type: string }
+              valor: { type: number }
