@@ -1,17 +1,11 @@
-import pkg from 'pg';
-const { Pool } = pkg;
+// src/db.js
+import pg from 'pg'
+const { Pool } = pg
 
-const pool = new Pool({
+export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('render.com') ? { rejectUnauthorized: false } : false
-});
+  ssl: { rejectUnauthorized: false },
+})
 
-export async function query(text, params) {
-  const client = await pool.connect();
-  try {
-    const res = await client.query(text, params);
-    return res;
-  } finally {
-    client.release();
-  }
-}
+// (opcional, por si te gusta usar query directamente)
+export const query = (text, params) => pool.query(text, params)

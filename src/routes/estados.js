@@ -1,27 +1,21 @@
 // src/routes/estados.js
 import { Router } from 'express'
 import { pool } from '../db.js'
-import { requireAuth } from '../middleware/auth.js' // 👈 export nombrado correcto
+import { requireAuth } from '../middleware/auth.js'
 
 const router = Router()
 
-// ⬅️ deja aquí tus otros endpoints existentes (si los tienes)
-
-// ────────────────────────────────────────────────────────────
-// GET /estados/:numero  → devuelve historial + declaración DUCA
-// protegido con JWT; si quieres filtrar por roles, pásalos al array
-// p. ej. requireAuth(['ADMIN','AGENTE','TRANSPORTISTA'])
-// ────────────────────────────────────────────────────────────
+// GET /estados/:numero → historial + declaración
 router.get('/:numero', requireAuth(), async (req, res) => {
   const { numero } = req.params
 
   // historial de estados
   const hq = `
     SELECT
-      e.estado       AS estado,
-      e.motivo       AS motivo,
-      e.creado_en    AS creado_en,
-      COALESCE(u.correo, '') AS usuario
+      e.estado                 AS estado,
+      e.motivo                 AS motivo,
+      e.creado_en              AS creado_en,
+      COALESCE(u.correo, '')   AS usuario
     FROM estados e
     LEFT JOIN usuarios u ON u.id = e.usuario_id
     WHERE e.numero_documento = $1
