@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { pool } from '../db.js';      // <-- ajusta a tu helper real
-import { auth } from '../middlewares/auth.js'; // <-- si tienes middleware
+import { auth } from '../middleware/auth.js'; // <-- si tienes middleware
 
 const router = Router();
 
