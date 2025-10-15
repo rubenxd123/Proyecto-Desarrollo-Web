@@ -5,11 +5,58 @@ import { requireAuth } from '../middleware/auth.js'
 
 const router = Router()
 
-// GET /estados/:numero → historial + declaración
+// -----------------------------------------------------------------------------
+// GET /estados
+// Lista "mis declaraciones" mostrando el último estado de cada documento.
+// Para TRANSPORTISTA filtra por el usuario autenticado (req.user.sub).
+// Para otros roles puedes ampliar el criterio según tu negocio.
+// -----------------------------------------------------------------------------
+router.get('/', requireAuth(), async (req, res) => {
+  const user = req.user // { sub, rol, ... }
+
+  let filtro = ''
+  const params = []
+
+  if (user.rol === 'TRANSPORTISTA') {
+    filtro = 'WHERE d.transportista_id = $1'
+    params.push(user.sub)
+  }
+
+  const q = `
+    WITH ult AS (
+      SELECT
+        e.numero_documento,
+        e.estado,
+        e.creado_en,
+        ROW_NUMBER() OVER (
+          PARTITION BY e.numero_documento
+          ORDER BY e.creado_en DESC
+        ) rn
+      FROM estados e
+      JOIN duca d ON d.numero_documento = e.numero_documento
+      ${filtro}
+    )
+    SELECT
+      numero_documento,
+      estado       AS estado_documento,
+      creado_en
+    FROM ult
+    WHERE rn = 1
+    ORDER BY creado_en DESC
+    LIMIT 200
+  `
+
+  const r = await pool.query(q, params)
+  res.json(r.rows)
+})
+
+// -----------------------------------------------------------------------------
+// GET /estados/:numero
+// Devuelve historial completo y la DUCA asociada.
+// -----------------------------------------------------------------------------
 router.get('/:numero', requireAuth(), async (req, res) => {
   const { numero } = req.params
 
-  // historial de estados
   const hq = `
     SELECT
       e.estado                 AS estado,
@@ -22,7 +69,6 @@ router.get('/:numero', requireAuth(), async (req, res) => {
     ORDER BY e.creado_en ASC
   `
 
-  // declaración DUCA
   const dq = `
     SELECT
       numero_documento,
