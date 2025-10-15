@@ -1,45 +1,63 @@
-import { Router } from 'express';
-import { pool } from '../db.js';      // <-- ajusta a tu helper real
-import { auth } from '../middleware/auth.js'; // <-- si tienes middleware
+// src/routes/estados.js
+import { Router } from 'express'
+import { pool } from '../db.js'
+import { requireAuth } from '../middleware/auth.js' // 👈 export nombrado correcto
 
-const router = Router();
+const router = Router()
 
-// ... tus endpoints existentes
+// ⬅️ deja aquí tus otros endpoints existentes (si los tienes)
 
-// Detalle por número de documento
-router.get('/:numero', auth, async (req, res) => {
-  const numero = req.params.numero;
+// ────────────────────────────────────────────────────────────
+// GET /estados/:numero  → devuelve historial + declaración DUCA
+// protegido con JWT; si quieres filtrar por roles, pásalos al array
+// p. ej. requireAuth(['ADMIN','AGENTE','TRANSPORTISTA'])
+// ────────────────────────────────────────────────────────────
+router.get('/:numero', requireAuth(), async (req, res) => {
+  const { numero } = req.params
 
   // historial de estados
   const hq = `
-    SELECT e.estado AS estado, e.motivo, e.creado_en, u.correo AS usuario
+    SELECT
+      e.estado       AS estado,
+      e.motivo       AS motivo,
+      e.creado_en    AS creado_en,
+      COALESCE(u.correo, '') AS usuario
     FROM estados e
     LEFT JOIN usuarios u ON u.id = e.usuario_id
     WHERE e.numero_documento = $1
     ORDER BY e.creado_en ASC
-  `;
+  `
+
   // declaración DUCA
   const dq = `
-    SELECT numero_documento, fecha_emision, pais_emisor, moneda, valor_aduana_total,
-           importador, exportador, transporte, mercancias
+    SELECT
+      numero_documento,
+      fecha_emision,
+      pais_emisor,
+      moneda,
+      valor_aduana_total,
+      importador,
+      exportador,
+      transporte,
+      mercancias
     FROM duca
     WHERE numero_documento = $1
-  `;
+  `
 
   const [historial, duca] = await Promise.all([
     pool.query(hq, [numero]),
-    pool.query(dq, [numero])
-  ]);
+    pool.query(dq, [numero]),
+  ])
 
-  const historialRows = historial.rows || [];
-  const ducaRow = duca.rows[0] || null;
+  const historialRows = historial.rows ?? []
+  const ducaRow = duca.rows?.[0] ?? null
 
   return res.json({
     numero,
-    estado: historialRows.at(-1)?.estado || 'DESCONOCIDO',
+    estado: historialRows.at(-1)?.estado ?? 'DESCONOCIDO',
     historial: historialRows,
-    duca: ducaRow
-  });
-});
+    duca: ducaRow,
+  })
+})
 
-export default router;
+export default router
