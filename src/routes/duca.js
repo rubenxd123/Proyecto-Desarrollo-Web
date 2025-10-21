@@ -4,22 +4,20 @@ import { requireAuth } from '../middleware/auth.js'
 
 const router = Router()
 
-// No usaremos transportista_id para evitar errores de tipo.
-// Solo guardamos los JSON y creamos el estado PENDIENTE.
 router.post('/', requireAuth(['TRANSPORTISTA','ADMIN']), async (req, res) => {
   const {
     numeroDocumento, fechaEmision, paisEmisor, moneda, valorAduanaTotal,
     importador, exportador, transporte
   } = req.body || {}
 
-  if (!numeroDocumento || !fechaEmision || !paisEmisor || !moneda || valorAduanaTotal == null) {
+  if (!numeroDocumento || !fechaEmision || !paisEmisor || !moneda || (valorAduanaTotal == null)) {
     return res.status(400).json({ error: 'Datos inválidos' })
   }
 
   try {
     await pool.query('BEGIN')
 
-    // ✅ Insert/Upsert sin transportista_id
+    // UPSERT sin transportista_id
     const upsert = `
       INSERT INTO duca (
         numero_documento, fecha_emision, pais_emisor, moneda, valor_aduana_total,
@@ -43,16 +41,18 @@ router.post('/', requireAuth(['TRANSPORTISTA','ADMIN']), async (req, res) => {
       paisEmisor,
       moneda,
       valorAduanaTotal,
-      JSON.stringify(importador ?? null),
-      JSON.stringify(exportador ?? null),
-      JSON.stringify(transporte ?? null),
+      importador ? JSON.stringify(importador) : null,
+      exportador ? JSON.stringify(exportador) : null,
+      transporte ? JSON.stringify(transporte) : null,
     ])
 
-    // ✅ Primer estado sin forzar usuario_id
+    // Crea primer estado si no existe
     await pool.query(
       `INSERT INTO estados (numero_documento, estado)
-       VALUES ($1,'PENDIENTE')
-       ON CONFLICT DO NOTHING`,
+       SELECT $1, 'PENDIENTE'
+       WHERE NOT EXISTS (
+         SELECT 1 FROM estados WHERE numero_documento = $1
+       )`,
       [numeroDocumento]
     )
 
@@ -61,7 +61,7 @@ router.post('/', requireAuth(['TRANSPORTISTA','ADMIN']), async (req, res) => {
   } catch (e) {
     await pool.query('ROLLBACK').catch(()=>{})
     console.error('POST /duca error:', e)
-    return res.status(500).json({ error: 'Error interno al registrar DUCA' })
+    res.status(500).json({ error: 'Error interno al registrar DUCA' })
   }
 })
 
