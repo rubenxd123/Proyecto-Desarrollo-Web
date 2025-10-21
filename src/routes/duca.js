@@ -17,13 +17,13 @@ router.post('/', requireAuth(['TRANSPORTISTA','ADMIN']), async (req, res) => {
   try {
     await pool.query('BEGIN')
 
-    // UPSERT sin transportista_id
+    // UPSERT (sin depender de transportista_id)
     const upsert = `
       INSERT INTO duca (
         numero_documento, fecha_emision, pais_emisor, moneda, valor_aduana_total,
         importador, exportador, transporte
       )
-      VALUES ($1,$2,$3,$4,$5, $6::jsonb,$7::jsonb,$8::jsonb)
+      VALUES ($1,$2,$3,$4,$5, $6::jsonb, $7::jsonb, $8::jsonb)
       ON CONFLICT (numero_documento) DO UPDATE SET
         fecha_emision       = EXCLUDED.fecha_emision,
         pais_emisor         = EXCLUDED.pais_emisor,
@@ -35,33 +35,35 @@ router.post('/', requireAuth(['TRANSPORTISTA','ADMIN']), async (req, res) => {
       RETURNING numero_documento
     `
 
-    const r = await pool.query(upsert, [
+    const args = [
       numeroDocumento,
-      fechaEmision,                 // 'YYYY-MM-DD'
+      fechaEmision, // 'YYYY-MM-DD'
       paisEmisor,
       moneda,
       valorAduanaTotal,
       importador ? JSON.stringify(importador) : null,
       exportador ? JSON.stringify(exportador) : null,
       transporte ? JSON.stringify(transporte) : null,
-    ])
+    ]
 
-    // Crea primer estado si no existe
-    await pool.query(
-      `INSERT INTO estados (numero_documento, estado)
-       SELECT $1, 'PENDIENTE'
-       WHERE NOT EXISTS (
-         SELECT 1 FROM estados WHERE numero_documento = $1
-       )`,
-      [numeroDocumento]
-    )
+    const r = await pool.query(upsert, args)
+
+    // Asegura primer estado PENDIENTE si no existe aún
+    await pool.query(`
+      INSERT INTO estados (numero_documento, estado)
+      SELECT $1, 'PENDIENTE'
+      WHERE NOT EXISTS (
+        SELECT 1 FROM estados WHERE numero_documento = $1
+      )
+    `, [numeroDocumento])
 
     await pool.query('COMMIT')
-    res.json({ message: 'Declaración registrada', numeroDocumento: r.rows[0].numero_documento })
+    return res.json({ message: 'Declaración registrada', numeroDocumento: r.rows[0].numero_documento })
   } catch (e) {
     await pool.query('ROLLBACK').catch(()=>{})
     console.error('POST /duca error:', e)
-    res.status(500).json({ error: 'Error interno al registrar DUCA' })
+    // API mantiene texto; el front ya muestra mensaje agradable
+    return res.status(500).json({ error: 'Error interno al registrar DUCA' })
   }
 })
 
