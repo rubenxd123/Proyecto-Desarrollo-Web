@@ -5,53 +5,82 @@ import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 
-// ============================================================
-// 🔹 Obtener todos los estados del transportista logueado
-// ============================================================
-router.get('/', requireAuth(['TRANSPORTISTA', 'ADMIN']), async (req, res) => {
+/**
+ * GET /estados
+ * Lista de declaraciones con su ÚLTIMO estado.
+ * No asume columnas especiales (como transportista_id) ni tabla usuarios.
+ * Si una DUCA no tiene estados, se muestra PENDIENTE y se usa fecha_emision como "creado".
+ */
+router.get('/', requireAuth(['ADMIN', 'AGENTE', 'TRANSPORTISTA']), async (_req, res) => {
   try {
-    const u = req.user;
-    const query = `
-      SELECT d.numero_documento, e.estado, e.creado_en
+    const q = `
+      WITH ult AS (
+        SELECT
+          e.numero_documento,
+          e.estado,
+          e.creado_en,
+          ROW_NUMBER() OVER (
+            PARTITION BY e.numero_documento
+            ORDER BY e.creado_en DESC
+          ) rn
+        FROM estados e
+      )
+      SELECT
+        d.numero_documento,
+        COALESCE(u.estado, 'PENDIENTE')    AS estado_documento,
+        COALESCE(u.creado_en, d.fecha_emision) AS creado_en
       FROM duca d
-      LEFT JOIN estados e ON e.numero_documento = d.numero_documento
-      WHERE d.transportista_id = $1
-      ORDER BY e.creado_en DESC NULLS LAST, d.numero_documento ASC
+      LEFT JOIN ult u
+        ON u.numero_documento = d.numero_documento
+       AND u.rn = 1
+      ORDER BY creado_en DESC NULLS LAST, d.numero_documento ASC
+      LIMIT 200;
     `;
-    const result = await pool.query(query, [u.sub]);
-    res.json(result.rows);
+    const r = await pool.query(q);
+    res.json(r.rows);
   } catch (err) {
     console.error('❌ Error en GET /estados', err);
     res.status(500).json({ error: 'Error interno en /estados' });
   }
 });
 
-// ============================================================
-// 🔹 Obtener detalle de un documento
-// ============================================================
-router.get('/:numero', requireAuth(['TRANSPORTISTA', 'ADMIN', 'AGENTE']), async (req, res) => {
+/**
+ * GET /estados/:numero
+ * Devuelve historial completo y la DUCA asociada.
+ * No une contra usuarios; devuelve usuario_id tal cual si existe en la tabla estados.
+ */
+router.get('/:numero', requireAuth(['ADMIN', 'AGENTE', 'TRANSPORTISTA']), async (req, res) => {
   const { numero } = req.params;
   try {
-    // Historial de cambios
     const hq = `
-      SELECT e.estado, e.motivo, e.creado_en, u.correo AS usuario
+      SELECT
+        e.estado,
+        e.motivo,
+        e.creado_en,
+        e.usuario_id            -- devolvemos el id directo; sin join a usuarios
       FROM estados e
-      LEFT JOIN usuarios u ON u.id = e.usuario_id
       WHERE e.numero_documento = $1
-      ORDER BY e.creado_en ASC
+      ORDER BY e.creado_en ASC;
     `;
 
-    // Datos de la DUCA
     const dq = `
-      SELECT numero_documento, fecha_emision, pais_emisor, moneda, valor_aduana_total,
-             importador, exportador, transporte, mercancias
+      SELECT
+        numero_documento,
+        fecha_emision,
+        pais_emisor,
+        moneda,
+        valor_aduana_total,
+        importador,
+        exportador,
+        transporte,
+        mercancias
       FROM duca
-      WHERE numero_documento = $1
+      WHERE numero_documento = $1;
     `;
 
     const [historial, duca] = await Promise.all([
       pool.query(hq, [numero]),
-      pool.query(dq, [numero])
+      pool.query(dq, [numero]),
     ]);
 
     const historialRows = historial.rows ?? [];
@@ -61,7 +90,7 @@ router.get('/:numero', requireAuth(['TRANSPORTISTA', 'ADMIN', 'AGENTE']), async 
       numero,
       estado: historialRows.at(-1)?.estado ?? 'DESCONOCIDO',
       historial: historialRows,
-      duca: ducaRow
+      duca: ducaRow,
     });
   } catch (err) {
     console.error('❌ Error en GET /estados/:numero', err);
