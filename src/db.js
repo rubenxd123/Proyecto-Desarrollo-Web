@@ -1,11 +1,9 @@
 // src/db.js
 import pg from 'pg'
-const { Pool } = pg
+import dotenv from 'dotenv'
+dotenv.config()
 
-export const pool = new Pool({
+export const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
+  ssl: process.env.PGSSL ? { rejectUnauthorized: false } : false,
 })
-
-// (opcional, por si te gusta usar query directamente)
-export const query = (text, params) => pool.query(text, params)
