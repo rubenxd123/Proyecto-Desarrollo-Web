@@ -1,53 +1,38 @@
-import express from 'express';
-import dotenv from 'dotenv';
-import cors from 'cors'; // 👈 agregado
+// src/server.js
+import express from 'express'
+import cors from 'cors'
+import dotenv from 'dotenv'
 
-import authRouter from './routes/auth.js';
-import usuariosRouter from './routes/usuarios.js';
-import ducaRouter from './routes/duca.js';
-import validacionRouter from './routes/validacion.js';
-import estadosRouter from './routes/estados.js';
+import authRouter from './routes/auth.js'        // (tu login actual)
+import ducaRouter from './routes/duca.js'
+import estadosRouter from './routes/estados.js'
 
-dotenv.config();
-const app = express();
+dotenv.config()
+const app = express()
 
-// ============================================================
-// 🔹 CONFIGURAR CORS (permite que el frontend haga peticiones)
-// ============================================================
+// CORS: pon EXACTAMENTE tu frontend
 const allowedOrigins = [
-  'https://frontend-proyecto-0hk1.onrender.com', // ⚡ tu frontend React en Render
-  /\.onrender\.com$/ // opcional: cualquier dominio *.onrender.com
-];
+  'https://frontend-proyecto-0hk1.onrender.com',
+]
 
-app.use(
-  cors({
-    origin: allowedOrigins,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  })
-);
+app.use(cors({
+  origin(origin, cb) {
+    if (!origin) return cb(null, true) // permite curl/Postman
+    const ok = allowedOrigins.some(o => o === origin || (o instanceof RegExp && o.test(origin)))
+    cb(ok ? null : new Error('CORS blocked'))
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}))
+app.options('*', cors())
 
-// responder preflight requests
-app.options('*', cors());
+app.use(express.json())
 
-// ============================================================
-// 🔹 Middleware base
-// ============================================================
-app.use(express.json());
+app.get('/', (_req, res) => res.json({ ok: true, service: 'aduanas-duca-api' }))
 
-// ============================================================
-// 🔹 Rutas principales
-// ============================================================
-app.get('/', (_req, res) => res.json({ ok: true, service: 'aduanas-duca-api' }));
+app.use('/auth', authRouter)
+app.use('/duca', ducaRouter)
+app.use('/estados', estadosRouter)
 
-app.use('/auth', authRouter);
-app.use('/usuarios', usuariosRouter);
-app.use('/duca', ducaRouter);
-app.use('/validacion', validacionRouter);
-app.use('/estados', estadosRouter);
-
-// ============================================================
-// 🔹 Iniciar servidor
-// ============================================================
-const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(`API listening on :${port}`));
+const port = process.env.PORT || 3000
+app.listen(port, () => console.log(`API listening on :${port}`))
