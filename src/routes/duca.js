@@ -14,6 +14,10 @@ router.post('/', requireAuth(['TRANSPORTISTA','ADMIN']), async (req, res) => {
     return res.status(400).json({ error: 'Datos inválidos' })
   }
 
+  // ⚠️ El sub puede ser string no numérico. Guardamos NULL si no es número.
+  const subRaw = req.user?.sub
+  const transportistaId = Number.isFinite(Number(subRaw)) ? Number(subRaw) : null
+
   try {
     await pool.query('BEGIN')
 
@@ -30,7 +34,8 @@ router.post('/', requireAuth(['TRANSPORTISTA','ADMIN']), async (req, res) => {
         valor_aduana_total  = EXCLUDED.valor_aduana_total,
         importador          = EXCLUDED.importador,
         exportador          = EXCLUDED.exportador,
-        transporte          = EXCLUDED.transporte
+        transporte          = EXCLUDED.transporte,
+        transportista_id    = EXCLUDED.transportista_id
       RETURNING numero_documento
     `
 
@@ -43,29 +48,29 @@ router.post('/', requireAuth(['TRANSPORTISTA','ADMIN']), async (req, res) => {
       JSON.stringify(importador ?? null),
       JSON.stringify(exportador ?? null),
       JSON.stringify(transporte ?? null),
-      req.user.sub,                 // id del usuario autenticado
+      transportistaId,
     ])
 
-    // primer estado si no existe
+    // Primer estado si no existe
     await pool.query(
       `INSERT INTO estados (numero_documento, estado, usuario_id)
        VALUES ($1,'PENDIENTE',$2)
        ON CONFLICT DO NOTHING`,
-      [numeroDocumento, req.user.sub]
+      [numeroDocumento, transportistaId]
     )
 
     await pool.query('COMMIT')
     res.json({ message: 'Declaración registrada', numeroDocumento: r.rows[0].numero_documento })
   } catch (e) {
     await pool.query('ROLLBACK').catch(()=>{})
-    // 🔎 DEBUG CONTROLADO: devuelve detalles de PG en no-prod
-    const debug = process.env.DEBUG_ERRORS === 'true'
     console.error('POST /duca error:', e)
+
+    // Habilita DEBUG_ERRORS=true en Render → Environment
+    const debug = process.env.DEBUG_ERRORS === 'true'
     return res.status(500).json({
       error: 'Error interno al registrar DUCA',
       ...(debug && {
-        code: e.code, detail: e.detail, hint: e.hint, position: e.position,
-        message: e.message
+        code: e.code, detail: e.detail, hint: e.hint, position: e.position, message: e.message
       })
     })
   }
