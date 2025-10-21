@@ -3,29 +3,19 @@ import jwt from 'jsonwebtoken'
 
 export function requireAuth(roles = []) {
   return (req, res, next) => {
+    const auth = req.headers.authorization || ''
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : null
+    if (!token) return res.status(401).json({ error: 'No token' })
+
     try {
-      const authHeader = req.headers.authorization || ''
-      const token = authHeader.startsWith('Bearer ')
-        ? authHeader.substring(7)
-        : null
-
-      if (!token) {
-        return res.status(401).json({ error: 'Token no proporcionado' })
+      const payload = jwt.verify(token, process.env.JWT_SECRET)
+      if (roles.length && !roles.includes(payload.rol)) {
+        return res.status(403).json({ error: 'Rol no autorizado' })
       }
-
-      const decoded = jwt.verify(token, process.env.JWT_SECRET)
-
-      // si especificas roles, verifica
-      if (roles.length > 0 && !roles.includes(decoded.rol)) {
-        return res.status(403).json({ error: 'Acceso denegado' })
-      }
-
-      // guarda info del usuario para uso posterior
-      req.user = decoded
+      req.user = payload
       next()
-    } catch (err) {
-      console.error('Auth error:', err.message)
-      return res.status(401).json({ error: 'Token inválido o expirado' })
+    } catch {
+      return res.status(401).json({ error: 'Token inválido' })
     }
   }
 }
