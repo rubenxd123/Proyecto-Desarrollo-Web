@@ -4,7 +4,6 @@ import { requireAuth } from '../middleware/auth.js'
 
 const router = Router()
 
-// Lista de mis declaraciones (para TRANSPORTISTA actual)
 router.get('/', requireAuth(['TRANSPORTISTA','ADMIN','AGENTE']), async (req, res) => {
   try {
     const q = `
@@ -31,7 +30,6 @@ router.get('/', requireAuth(['TRANSPORTISTA','ADMIN','AGENTE']), async (req, res
   }
 })
 
-// Detalle por número (incluye JSONB)
 router.get('/:numero', requireAuth(['TRANSPORTISTA','ADMIN','AGENTE']), async (req, res) => {
   try {
     const numero = req.params.numero
@@ -45,14 +43,8 @@ router.get('/:numero', requireAuth(['TRANSPORTISTA','ADMIN','AGENTE']), async (r
     `
     const dq = `
       SELECT
-        numero_documento,
-        fecha_emision,
-        pais_emisor,
-        moneda,
-        valor_aduana_total,
-        importador,
-        exportador,
-        transporte
+        numero_documento, fecha_emision, pais_emisor, moneda, valor_aduana_total,
+        importador, exportador, transporte
       FROM duca
       WHERE numero_documento = $1
     `
@@ -62,12 +54,11 @@ router.get('/:numero', requireAuth(['TRANSPORTISTA','ADMIN','AGENTE']), async (r
       pool.query(dq, [numero]),
     ])
 
-    const ducaRow = duca.rows?.[0] ?? null
-    return res.json({
+    res.json({
       numero,
       estado: historial.rows.at(-1)?.estado ?? 'DESCONOCIDO',
       historial: historial.rows,
-      duca: ducaRow,
+      duca: duca.rows?.[0] ?? null,
     })
   } catch (e) {
     console.error('GET /estados/:numero error:', e)
