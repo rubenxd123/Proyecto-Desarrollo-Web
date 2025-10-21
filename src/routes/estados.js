@@ -1,47 +1,39 @@
-// src/routes/estados.js
 import { Router } from 'express';
-import { pool } from '../db.js'; // conexión pg
-import { requireAuth } from '../middleware/auth.js'; // validación JWT
+import { pool } from '../db.js';
+import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 
-// =============================================================
-// 🔹 Obtener lista de declaraciones del transportista autenticado
-// =============================================================
+// Lista (ya te funciona)
 router.get('/', requireAuth(['TRANSPORTISTA', 'ADMIN', 'AGENTE']), async (req, res) => {
   try {
     const u = req.user;
-    const result = await pool.query(
+    const r = await pool.query(
       `SELECT numero_documento, estado_documento, creado_en
          FROM duca
         WHERE transportista_id = $1
         ORDER BY creado_en DESC`,
       [u.sub]
     );
-    res.json(result.rows);
-  } catch (err) {
-    console.error('Error /estados:', err);
+    res.json(r.rows);
+  } catch (e) {
+    console.error('Error /estados:', e);
     res.status(500).json({ error: 'Error interno en /estados' });
   }
 });
 
-// =============================================================
-// 🔹 Detalle de una declaración DUCA (GET /estados/:numero)
-// =============================================================
+// Detalle
 router.get('/:numero', requireAuth(['TRANSPORTISTA', 'ADMIN', 'AGENTE']), async (req, res) => {
   const { numero } = req.params;
   try {
-    // 1️⃣ Historial de cambios en la tabla estados
-    const historialQuery = `
+    const hq = `
       SELECT e.estado, e.motivo, e.creado_en, u.correo AS usuario
         FROM estados e
         LEFT JOIN usuarios u ON u.id = e.usuario_id
        WHERE e.numero_documento = $1
        ORDER BY e.creado_en ASC
     `;
-
-    // 2️⃣ Información principal de la DUCA
-    const ducaQuery = `
+    const dq = `
       SELECT numero_documento, fecha_emision, pais_emisor, moneda, valor_aduana_total,
              importador, exportador, transporte, mercancias
         FROM duca
@@ -49,8 +41,8 @@ router.get('/:numero', requireAuth(['TRANSPORTISTA', 'ADMIN', 'AGENTE']), async 
     `;
 
     const [historial, duca] = await Promise.all([
-      pool.query(historialQuery, [numero]),
-      pool.query(ducaQuery, [numero]),
+      pool.query(hq, [numero]),
+      pool.query(dq, [numero]),
     ]);
 
     res.json({
@@ -59,8 +51,8 @@ router.get('/:numero', requireAuth(['TRANSPORTISTA', 'ADMIN', 'AGENTE']), async 
       historial: historial.rows,
       duca: duca.rows[0] || null,
     });
-  } catch (err) {
-    console.error('Error /estados/:numero:', err);
+  } catch (e) {
+    console.error('Error /estados/:numero:', e);
     res.status(500).json({ error: 'Error interno en /estados/:numero' });
   }
 });
