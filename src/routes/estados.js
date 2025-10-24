@@ -7,9 +7,8 @@ const router = Router();
 const ALLOWED = new Set(["PENDIENTE","EN_REVISION","VALIDADA","RECHAZADA","ANULADA"]);
 
 /**
- * Lista de DUCA (con ?estado=...) y claves es/EN + fecha ISO.
- * Responde array de objetos:
- *  { numero, estado, creado, number, status, created }
+ * Lista DUCA con ?estado= opcional.
+ * Devuelve objetos con TODAS las variantes de claves para evitar guiones/Invalid Date en el front.
  */
 const getEstados = async (req, res) => {
   const estado = String(req.query.estado || "").toUpperCase().trim();
@@ -32,19 +31,31 @@ const getEstados = async (req, res) => {
     const { rows } = await query(sql, params);
 
     const out = rows.map(r => {
-      const createdISO = r.fecha_emision
-        ? new Date(r.fecha_emision).toISOString().slice(0, 10)
+      const iso = r.fecha_emision
+        ? new Date(r.fecha_emision).toISOString()
         : null;
 
       return {
         // español
         numero: r.numero_documento,
         estado: r.estado_documento,
-        creado: createdISO,
+        creado: iso,
+
         // inglés
         number: r.numero_documento,
         status: r.estado_documento,
-        created: createdISO
+        created: iso,
+
+        // variantes
+        numero_documento: r.numero_documento,
+        numeroDocumento: r.numero_documento,
+        estado_documento: r.estado_documento,
+        estadoDocumento: r.estado_documento,
+
+        createdAt: iso,
+        created_at: iso,
+        fecha_emision: r.fecha_emision,
+        fechaEmision: r.fecha_emision
       };
     });
 
