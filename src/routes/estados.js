@@ -1,4 +1,3 @@
-// src/routes/estados.js
 import { Router } from "express";
 const router = Router();
 

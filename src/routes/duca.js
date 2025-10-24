@@ -1,10 +1,8 @@
-// src/routes/duca.js
 import { Router } from "express";
 const router = Router();
 
-// Pendientes / en revisión (la UI que te falla)
+// Pendientes / En revisión (pantalla que te daba error)
 router.get("/pending", async (req, res) => {
-  // TODO: remplazar con consulta a BD
   res.json({ items: [] });
 });
 
