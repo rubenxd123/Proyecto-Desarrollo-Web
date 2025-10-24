@@ -1,30 +1,24 @@
-import express from 'express';
-import { query } from '../db.js';
-import { requireAuth } from '../middleware/auth.js';
+// src/routes/validacion.js
+import { Router } from "express";
+import { query } from "../db.js";
 
-const router = express.Router();
+const router = Router();
 
-router.get('/pendientes', requireAuth(['AGENTE']), async (_req, res) => {
-  const r = await query("SELECT numero_documento, estado_documento, creado_en FROM duca WHERE estado_documento IN ('PENDIENTE','EN_REVISION') ORDER BY creado_en ASC", []);
-  res.json(r.rows);
-});
+const getValidaciones = async (req, res) => {
+  try {
+    const { rows } = await query?.(
+      "SELECT numero, estado, creado FROM declaraciones WHERE estado IN ('pendiente','revision') ORDER BY creado DESC LIMIT 50"
+    ) ?? { rows: [] };
+    res.json({ items: rows });
+  } catch (e) {
+    console.error("validacion error:", e.message);
+    res.json({ items: [] });
+  }
+};
 
-router.post('/:numeroDocumento/aprobar', requireAuth(['AGENTE']), async (req, res) => {
-  const { numeroDocumento } = req.params;
-  const r = await query("UPDATE duca SET estado_documento='VALIDADA' WHERE numero_documento=$1 RETURNING numero_documento", [numeroDocumento]);
-  if (!r.rowCount) return res.status(404).json({ error: 'No encontrado' });
-  await query('INSERT INTO bitacora(usuario_id, operacion, resultado, numero_documento) VALUES ($1,$2,$3,$4)',
-    [req.user.sub, 'APROBAR', 'OK', numeroDocumento]);
-  res.json({ message: 'Aprobado', numeroDocumento });
-});
-
-router.post('/:numeroDocumento/rechazar', requireAuth(['AGENTE']), async (req, res) => {
-  const { numeroDocumento } = req.params;
-  const r = await query("UPDATE duca SET estado_documento='RECHAZADA' WHERE numero_documento=$1 RETURNING numero_documento", [numeroDocumento]);
-  if (!r.rowCount) return res.status(404).json({ error: 'No encontrado' });
-  await query('INSERT INTO bitacora(usuario_id, operacion, resultado, numero_documento) VALUES ($1,$2,$3,$4)',
-    [req.user.sub, 'RECHAZAR', req.body?.motivo ? 'ERROR:'+req.body.motivo : 'OK', numeroDocumento]);
-  res.json({ message: 'Rechazado', numeroDocumento });
-});
+// alias típicos que suelen usar los frontends
+router.get("/", getValidaciones);
+router.get("/pendientes", getValidaciones);
+router.get("/en-revision", getValidaciones);
 
 export default router;
