@@ -6,10 +6,11 @@ const router = Router();
 
 /**
  * DUCA en PENDIENTE o EN_REVISION.
- * Devuelve objetos con TODAS las variantes de claves:
- *  - numero, number, numero_documento, numeroDocumento
- *  - estado, status, estado_documento, estadoDocumento
- *  - creado, created, createdAt, created_at, fecha_emision, fechaEmision
+ * Devuelve claves en ES/EN y fechas en:
+ *  - ISO completo           (created_iso)
+ *  - YYYY-MM-DD             (created_date)
+ *  - timestamp ms (number)  (created_ms)
+ * Además duplica en: creado/created/createdAt/created_at/fecha_emision/fechaEmision
  */
 const getValidaciones = async (_req, res) => {
   const sql = `
@@ -27,39 +28,43 @@ const getValidaciones = async (_req, res) => {
     const { rows } = await query(sql);
 
     const out = rows.map(r => {
-      // fecha_emision viene como DATE -> forzamos ISO y duplicamos en varias claves
-      const iso = r.fecha_emision
-        ? new Date(r.fecha_emision).toISOString() // 2025-10-21T00:00:00.000Z
-        : null;
+      const d = r.fecha_emision ? new Date(r.fecha_emision) : null;
+      const created_ms   = d ? d.getTime() : null;               // ← seguro para new Date(ms)
+      const created_iso  = d ? d.toISOString() : null;
+      const created_date = d ? created_iso.slice(0, 10) : null;  // YYYY-MM-DD
 
       return {
-        // español
+        // Español
         numero: r.numero_documento,
         estado: r.estado_documento,
-        creado: iso,
+        creado: created_ms,
 
-        // inglés
+        // Inglés
         number: r.numero_documento,
         status: r.estado_documento,
-        created: iso,
+        created: created_ms,
 
-        // variantes comunes camel/snake
+        // Variantes comunes
         numero_documento: r.numero_documento,
         numeroDocumento: r.numero_documento,
         estado_documento: r.estado_documento,
         estadoDocumento: r.estado_documento,
 
-        createdAt: iso,
-        created_at: iso,
-        fecha_emision: r.fecha_emision,           // DATE puro (por si el front lo pinta tal cual)
-        fechaEmision: r.fecha_emision
+        createdAt: created_ms,
+        created_at: created_ms,
+        fecha_emision: r.fecha_emision,
+        fechaEmision: r.fecha_emision,
+
+        // Extras explícitos por si el front solo imprime strings
+        created_iso,
+        created_date
       };
     });
 
     res.json(out);
   } catch (e) {
     console.error("validacion error:", e.message);
-    res.json([]); // no rompemos el front
+    res.json([]);
   }
 };
 

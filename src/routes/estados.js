@@ -7,13 +7,13 @@ const router = Router();
 const ALLOWED = new Set(["PENDIENTE","EN_REVISION","VALIDADA","RECHAZADA","ANULADA"]);
 
 /**
- * Lista DUCA con ?estado= opcional.
- * Devuelve objetos con TODAS las variantes de claves para evitar guiones/Invalid Date en el front.
+ * Lista DUCA (opcional ?estado=...).
+ * Devuelve las mismas variantes que /validacion para asegurar compatibilidad.
  */
 const getEstados = async (req, res) => {
   const estado = String(req.query.estado || "").toUpperCase().trim();
 
-  const where = ALLOWED.has(estado) ? `WHERE estado_documento = $1` : "";
+  const where  = ALLOWED.has(estado) ? `WHERE estado_documento = $1` : "";
   const params = ALLOWED.has(estado) ? [estado] : [];
 
   const sql = `
@@ -31,31 +31,36 @@ const getEstados = async (req, res) => {
     const { rows } = await query(sql, params);
 
     const out = rows.map(r => {
-      const iso = r.fecha_emision
-        ? new Date(r.fecha_emision).toISOString()
-        : null;
+      const d = r.fecha_emision ? new Date(r.fecha_emision) : null;
+      const created_ms   = d ? d.getTime() : null;
+      const created_iso  = d ? d.toISOString() : null;
+      const created_date = d ? created_iso.slice(0, 10) : null;
 
       return {
-        // español
+        // Español
         numero: r.numero_documento,
         estado: r.estado_documento,
-        creado: iso,
+        creado: created_ms,
 
-        // inglés
+        // Inglés
         number: r.numero_documento,
         status: r.estado_documento,
-        created: iso,
+        created: created_ms,
 
-        // variantes
+        // Variantes
         numero_documento: r.numero_documento,
         numeroDocumento: r.numero_documento,
         estado_documento: r.estado_documento,
         estadoDocumento: r.estado_documento,
 
-        createdAt: iso,
-        created_at: iso,
+        createdAt: created_ms,
+        created_at: created_ms,
         fecha_emision: r.fecha_emision,
-        fechaEmision: r.fecha_emision
+        fechaEmision: r.fecha_emision,
+
+        // Extras
+        created_iso,
+        created_date
       };
     });
 
