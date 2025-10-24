@@ -1,11 +1,14 @@
-// backend/duca.js
+// src/duca.js
 import { Router } from "express";
 import { pool } from "./db.js";
+
 const router = Router();
 
-router.post("/", async (req, res) => {
+// POST /api/duca/registrar
+router.post("/registrar", async (req, res) => {
   try {
     const { numero, paisEmisor, moneda, valorAduanaTotal, estado } = req.body;
+
     if (!numero || !paisEmisor || !moneda || !valorAduanaTotal) {
       return res.status(400).json({ message: "Faltan campos obligatorios" });
     }
@@ -22,10 +25,10 @@ router.post("/", async (req, res) => {
       [numero, paisEmisor, moneda, valorAduanaTotal, estado || "Pendiente"]
     );
 
-    res.status(201).json({ message: "DUCA registrada", data: rows[0] });
-  } catch (e) {
-    console.error("POST /duca:", e.message);
-    res.status(500).json({ message: "Error registrando DUCA" });
+    res.status(201).json({ message: "DUCA registrada con éxito", data: rows[0] });
+  } catch (error) {
+    console.error("❌ Error en POST /api/duca/registrar:", error.message);
+    res.status(500).json({ message: "Error al registrar DUCA" });
   }
 });
 
