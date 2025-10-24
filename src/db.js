@@ -1,8 +1,19 @@
-import pg from 'pg'
-import dotenv from 'dotenv'
-dotenv.config()
+// src/db.js
+import pg from 'pg';
 
-export const pool = new pg.Pool({
+const { Pool } = pg;
+
+const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.PGSSL ? { rejectUnauthorized: false } : false,
-})
+  // Render/Heroku suelen requerir SSL
+  ssl: process.env.PGSSLMODE === 'disable' ? false : { rejectUnauthorized: false }
+});
+
+// ✅ Export nominal `query` para compatibilidad con las rutas
+export const query = (text, params) => pool.query(text, params);
+
+// Por si en otros archivos usas pool directamente
+export { pool };
+
+// (opcional) default export
+export default pool;
