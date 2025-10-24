@@ -1,47 +1,49 @@
-// src/routes/duca.js
 import { Router } from "express";
 import { query } from "../db.js";
 
 const router = Router();
 
-const safeRows = async (sql) => {
+const getPendientes = async (_req, res) => {
   try {
-    if (!query) return [];
-    const { rows } = await query(sql);
-    return rows || [];
+    const { rows } = await query(`
+      SELECT 
+        numero_documento AS numero,
+        estado_documento AS estado,
+        creado_en AS creado
+      FROM duca
+      WHERE estado_documento IN ('PENDIENTE','EN_REVISION')
+      ORDER BY creado_en DESC
+      LIMIT 50;
+    `);
+    res.json(rows || []);
   } catch (e) {
-    // Si la tabla no existe o hay error de BD, no rompas el front:
-    console.error("duca route error:", e.message);
-    return [];
+    console.error("duca/pending error:", e.message);
+    res.status(500).json({ error: e.message });
   }
 };
 
-// Pendientes / revisión
-const getPendientes = async (req, res) => {
-  const rows = await safeRows(
-    "SELECT numero, estado, creado FROM declaraciones WHERE estado IN ('pendiente','revision') ORDER BY creado DESC LIMIT 50"
-  );
-  res.json({ items: rows });
+const getEstados = async (_req, res) => {
+  try {
+    const { rows } = await query(`
+      SELECT 
+        numero_documento AS numero,
+        estado_documento AS estado,
+        creado_en AS creado
+      FROM duca
+      ORDER BY creado_en DESC
+      LIMIT 100;
+    `);
+    res.json(rows || []);
+  } catch (e) {
+    console.error("duca/estados error:", e.message);
+    res.status(500).json({ error: e.message });
+  }
 };
 
-// Estados (alias que tu front está llamando como /api/duca/estados)
-const getEstados = async (req, res) => {
-  const rows = await safeRows(
-    "SELECT numero, estado, creado FROM declaraciones ORDER BY creado DESC LIMIT 100"
-  );
-  res.json({ items: rows });
-};
-
-// Rutas explícitas
-router.get("/pending", getPendientes);
+// rutas que usa el front
 router.get("/pendientes", getPendientes);
 router.get("/en-revision", getPendientes);
-router.get("/review", getPendientes);
-
-// 👉 alias solicitado por tu front:
 router.get("/estados", getEstados);
-
-// Fallback: cualquier otra subruta bajo /duca/*
 router.get("*", getPendientes);
 
 export default router;
