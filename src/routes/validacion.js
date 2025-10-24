@@ -5,8 +5,8 @@ import { query } from "../db.js";
 const router = Router();
 
 /**
- * Devuelve DUCA en estado PENDIENTE o EN_REVISION
- * Respuesta: Array de objetos { numero, estado, creado }
+ * Devuelve todas las DUCA en estado PENDIENTE o EN_REVISION.
+ * Usa la columna fecha_emision como "creado" para mostrar en el frontend.
  */
 const getValidaciones = async (_req, res) => {
   try {
@@ -14,26 +14,23 @@ const getValidaciones = async (_req, res) => {
       SELECT
         numero_documento AS numero,
         estado_documento AS estado,
-        creado_en        AS creado
+        fecha_emision    AS creado
       FROM duca
-      WHERE estado_documento IN ('PENDIENTE','EN_REVISION')
-      ORDER BY creado_en DESC
+      WHERE estado_documento IN ('PENDIENTE', 'EN_REVISION')
+      ORDER BY fecha_emision DESC
       LIMIT 50;
     `);
     res.json(rows || []);
   } catch (e) {
     console.error("validacion error:", e.message);
-    // Para no romper el frontend, devolvemos array vacío en caso de error
     res.json([]);
   }
 };
 
-// Ruta base y aliases que el frontend podría usar
+// Rutas disponibles
 router.get("/", getValidaciones);
 router.get("/pendientes", getValidaciones);
 router.get("/en-revision", getValidaciones);
-
-// Fallback: cualquier subruta bajo /validacion/*
 router.get("*", getValidaciones);
 
 export default router;
