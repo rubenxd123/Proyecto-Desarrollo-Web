@@ -1,4 +1,3 @@
-// src/routes/validacion.js
 import { Router } from "express";
 import { query } from "../db.js";
 
@@ -16,9 +15,14 @@ const getValidaciones = async (req, res) => {
   }
 };
 
-// alias típicos que suelen usar los frontends
+// Ruta base
 router.get("/", getValidaciones);
+
+// Alias típicos
 router.get("/pendientes", getValidaciones);
 router.get("/en-revision", getValidaciones);
+
+// Fallback para cualquier subruta
+router.get("*", getValidaciones);
 
 export default router;

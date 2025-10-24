@@ -1,4 +1,3 @@
-// src/routes/duca.js
 import { Router } from "express";
 import { query } from "../db.js";
 
@@ -16,10 +15,13 @@ const getPendientes = async (req, res) => {
   }
 };
 
-// Soporta múltiples rutas que el frontend podría usar
+// Rutas explícitas conocidas
 router.get("/pending", getPendientes);
 router.get("/pendientes", getPendientes);
 router.get("/en-revision", getPendientes);
 router.get("/review", getPendientes);
+
+// Fallback: cualquier otra subruta bajo /api/duca/*
+router.get("*", getPendientes);
 
 export default router;

@@ -1,4 +1,3 @@
-// src/routes/estados.js
 import { Router } from "express";
 import { query } from "../db.js";
 
@@ -16,13 +15,16 @@ const getEstados = async (req, res) => {
   }
 };
 
-// ruta base
+// Ruta base
 router.get("/", getEstados);
 
-// alias frecuentes
+// Alias
 router.get("/mis", getEstados);
 router.get("/mis-declaraciones", getEstados);
 router.get("/declaraciones", getEstados);
 router.get("/list", getEstados);
+
+// Fallback
+router.get("*", getEstados);
 
 export default router;
