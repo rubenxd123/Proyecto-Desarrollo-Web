@@ -1,67 +1,32 @@
-import { Router } from 'express'
-import { pool } from '../db.js'
-import { requireAuth } from '../middleware/auth.js'
+// backend/duca.js
+import { Router } from "express";
+import { pool } from "./db.js";
+const router = Router();
 
-const router = Router()
-
-router.post('/', requireAuth(), async (req, res) => {
+router.post("/", async (req, res) => {
   try {
-    const {
-      numeroDocumento,
-      fechaEmision,
-      paisEmisor,
-      moneda,
-      valorAduanaTotal,
-      importador,
-      exportador,
-      transporte
-    } = req.body
-
-    if (!numeroDocumento) {
-      return res.status(400).json({ error: 'Falta número de documento' })
+    const { numero, paisEmisor, moneda, valorAduanaTotal, estado } = req.body;
+    if (!numero || !paisEmisor || !moneda || !valorAduanaTotal) {
+      return res.status(400).json({ message: "Faltan campos obligatorios" });
     }
 
-    // Inserta/actualiza DUCA (guarda JSON completos si existen)
-    await pool.query(
-      `INSERT INTO duca (
-         numero_documento, fecha_emision, pais_emisor, moneda, valor_aduana_total,
-         importador, exportador, transporte
-       ) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8::jsonb)
-       ON CONFLICT (numero_documento) DO UPDATE SET
-         fecha_emision      = EXCLUDED.fecha_emision,
-         pais_emisor        = EXCLUDED.pais_emisor,
-         moneda             = EXCLUDED.moneda,
-         valor_aduana_total = EXCLUDED.valor_aduana_total,
-         importador         = EXCLUDED.importador,
-         exportador         = EXCLUDED.exportador,
-         transporte         = EXCLUDED.transporte`,
-      [
-        numeroDocumento,
-        fechaEmision || null,
-        paisEmisor || null,
-        moneda || null,
-        valorAduanaTotal ?? null,
-        JSON.stringify(importador || {}),
-        JSON.stringify(exportador || {}),
-        JSON.stringify(transporte || {}),
-      ]
-    )
+    const { rows } = await pool.query(
+      `INSERT INTO duca (numero, pais_emisor, moneda, valor_aduana_total, estado)
+       VALUES ($1,$2,$3,$4,$5)
+       ON CONFLICT (numero) DO UPDATE SET
+         pais_emisor=EXCLUDED.pais_emisor,
+         moneda=EXCLUDED.moneda,
+         valor_aduana_total=EXCLUDED.valor_aduana_total,
+         estado=EXCLUDED.estado
+       RETURNING id, numero, estado, created_at`,
+      [numero, paisEmisor, moneda, valorAduanaTotal, estado || "Pendiente"]
+    );
 
-    // Asegura estado inicial PENDIENTE
-    await pool.query(
-      `INSERT INTO estados (numero_documento, estado, creado_en)
-       SELECT $1, 'PENDIENTE', NOW()
-       WHERE NOT EXISTS (
-         SELECT 1 FROM estados WHERE numero_documento = $1
-       )`,
-      [numeroDocumento]
-    )
-
-    res.json({ message: 'Declaración registrada', numeroDocumento })
+    res.status(201).json({ message: "DUCA registrada", data: rows[0] });
   } catch (e) {
-    console.error('POST /duca error:', e)
-    res.status(500).json({ error: 'Error interno al registrar DUCA' })
+    console.error("POST /duca:", e.message);
+    res.status(500).json({ message: "Error registrando DUCA" });
   }
-})
+});
 
-export default router
+export default router;
