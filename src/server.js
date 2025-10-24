@@ -1,24 +1,21 @@
-// src/server.js
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 
-import authRouter from './routes/auth.js'        // (tu login actual)
+import authRouter from './routes/auth.js'
 import ducaRouter from './routes/duca.js'
 import estadosRouter from './routes/estados.js'
 
 dotenv.config()
 const app = express()
 
-// CORS: pon EXACTAMENTE tu frontend
 const allowedOrigins = [
   'https://frontend-proyecto-0hk1.onrender.com',
 ]
-
 app.use(cors({
   origin(origin, cb) {
-    if (!origin) return cb(null, true) // permite curl/Postman
-    const ok = allowedOrigins.some(o => o === origin || (o instanceof RegExp && o.test(origin)))
+    if (!origin) return cb(null, true)
+    const ok = allowedOrigins.includes(origin)
     cb(ok ? null : new Error('CORS blocked'))
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
