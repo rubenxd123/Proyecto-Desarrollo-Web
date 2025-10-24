@@ -1,30 +1,32 @@
+// src/routes/estados.js
 import { Router } from "express";
 import { query } from "../db.js";
 
 const router = Router();
 
-const getEstados = async (req, res) => {
+const safeRows = async (sql) => {
   try {
-    const { rows } = await query?.(
-      "SELECT numero, estado, creado FROM declaraciones ORDER BY creado DESC LIMIT 100"
-    ) ?? { rows: [] };
-    res.json({ items: rows });
+    if (!query) return [];
+    const { rows } = await query(sql);
+    return rows || [];
   } catch (e) {
-    console.error("estados error:", e.message);
-    res.json({ items: [] });
+    console.error("estados route error:", e.message);
+    return [];
   }
 };
 
-// Ruta base
-router.get("/", getEstados);
+const getEstados = async (req, res) => {
+  const rows = await safeRows(
+    "SELECT numero, estado, creado FROM declaraciones ORDER BY creado DESC LIMIT 100"
+  );
+  res.json({ items: rows });
+};
 
-// Alias
+router.get("/", getEstados);
 router.get("/mis", getEstados);
 router.get("/mis-declaraciones", getEstados);
 router.get("/declaraciones", getEstados);
 router.get("/list", getEstados);
-
-// Fallback
 router.get("*", getEstados);
 
 export default router;

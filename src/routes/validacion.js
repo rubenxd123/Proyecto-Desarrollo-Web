@@ -1,28 +1,30 @@
+// src/routes/validacion.js
 import { Router } from "express";
 import { query } from "../db.js";
 
 const router = Router();
 
-const getValidaciones = async (req, res) => {
+const safeRows = async (sql) => {
   try {
-    const { rows } = await query?.(
-      "SELECT numero, estado, creado FROM declaraciones WHERE estado IN ('pendiente','revision') ORDER BY creado DESC LIMIT 50"
-    ) ?? { rows: [] };
-    res.json({ items: rows });
+    if (!query) return [];
+    const { rows } = await query(sql);
+    return rows || [];
   } catch (e) {
-    console.error("validacion error:", e.message);
-    res.json({ items: [] });
+    console.error("validacion route error:", e.message);
+    return [];
   }
 };
 
-// Ruta base
-router.get("/", getValidaciones);
+const getValidaciones = async (req, res) => {
+  const rows = await safeRows(
+    "SELECT numero, estado, creado FROM declaraciones WHERE estado IN ('pendiente','revision') ORDER BY creado DESC LIMIT 50"
+  );
+  res.json({ items: rows });
+};
 
-// Alias típicos
+router.get("/", getValidaciones);
 router.get("/pendientes", getValidaciones);
 router.get("/en-revision", getValidaciones);
-
-// Fallback para cualquier subruta
 router.get("*", getValidaciones);
 
 export default router;
