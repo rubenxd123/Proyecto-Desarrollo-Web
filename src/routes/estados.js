@@ -1,23 +1,14 @@
-// src/routes/estados.js
-import { Router } from "express";
-import { pool } from "../db.js";
+import express from 'express';
+import { query } from '../db.js';
+import { requireAuth } from '../middleware/auth.js';
 
-const router = Router();
+const router = express.Router();
 
-// GET /api/duca/estados
-router.get("/estados", async (_req, res) => {
-  try {
-    const { rows } = await pool.query(
-      `SELECT numero, estado,
-              TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI') AS creado
-       FROM duca
-       ORDER BY created_at DESC`
-    );
-    res.json(rows);
-  } catch (e) {
-    console.error("GET /api/duca/estados:", e.message);
-    res.status(500).json({ message: "Error consultando estados" });
-  }
+router.get('/', requireAuth(['TRANSPORTISTA']), async (req, res) => {
+  const u = req.user;
+  const r = await query('SELECT numero_documento, estado_documento, creado_en FROM duca WHERE transportista_id=$1 ORDER BY creado_en DESC', [u.sub]);
+  await query('INSERT INTO bitacora(usuario_id, operacion, resultado) VALUES ($1,$2,$3)', [u.sub, 'CONSULTAR_ESTADO', 'OK']);
+  res.json(r.rows);
 });
 
 export default router;
