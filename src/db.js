@@ -2,8 +2,8 @@
 import pg from "pg";
 const { Pool } = pg;
 
-// Conexión a PostgreSQL (Render)
+// Render PostgreSQL expone DATABASE_URL
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }, // Requerido en Render
+  ssl: { rejectUnauthorized: false } // requerido por Render
 });

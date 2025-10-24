@@ -1,20 +1,9 @@
-import jwt from 'jsonwebtoken'
-
-export function requireAuth(roles = []) {
-  return (req, res, next) => {
-    const auth = req.headers.authorization || ''
-    const token = auth.startsWith('Bearer ') ? auth.slice(7) : null
-    if (!token) return res.status(401).json({ error: 'Token inválido' })
-
-    try {
-      const payload = jwt.verify(token, process.env.JWT_SECRET)
-      if (roles.length && !roles.includes(payload.rol)) {
-        return res.status(403).json({ error: 'Rol no autorizado' })
-      }
-      req.user = payload
-      next()
-    } catch {
-      return res.status(401).json({ error: 'Token inválido' })
-    }
-  }
+// src/middleware/auth.js
+export function requireAuth(req, res, next) {
+  // Middleware mínimo: si envías Authorization: Bearer <token> pasa; si no, también (modo demo)
+  // Cambia esta lógica cuando implementes auth real.
+  const hdr = req.headers.authorization || "";
+  if (hdr.startsWith("Bearer ")) return next();
+  // En modo demo no bloqueamos:
+  return next();
 }
