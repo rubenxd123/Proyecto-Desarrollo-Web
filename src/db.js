@@ -3,17 +3,15 @@ import pg from 'pg';
 
 const { Pool } = pg;
 
-const pool = new Pool({
+// Render/Heroku-style: usa DATABASE_URL y SSL
+export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  // Render/Heroku suelen requerir SSL
-  ssl: process.env.PGSSLMODE === 'disable' ? false : { rejectUnauthorized: false }
+  ssl: process.env.PGSSL === 'false' ? false : { rejectUnauthorized: false },
 });
 
-// ✅ Export nominal `query` para compatibilidad con las rutas
-export const query = (text, params) => pool.query(text, params);
+// Helper opcional por compatibilidad con rutas antiguas
+export async function query(text, params) {
+  return pool.query(text, params);
+}
 
-// Por si en otros archivos usas pool directamente
-export { pool };
-
-// (opcional) default export
 export default pool;
