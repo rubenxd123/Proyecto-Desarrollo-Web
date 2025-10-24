@@ -6,9 +6,22 @@ const router = Router();
 
 const ALLOWED = new Set(["PENDIENTE","EN_REVISION","VALIDADA","RECHAZADA","ANULADA"]);
 
+const toDateStrings = (dateVal) => {
+  if (!dateVal) {
+    return { createdISO: null, createdDate: null };
+  }
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) {
+    return { createdISO: null, createdDate: null };
+  }
+  const iso = d.toISOString();
+  const ymd = iso.slice(0, 10);
+  return { createdISO: iso, createdDate: ymd };
+};
+
 /**
  * Lista DUCA (opcional ?estado=...).
- * Devuelve las mismas variantes que /validacion para asegurar compatibilidad.
+ * Fechas siempre como STRING "YYYY-MM-DD" en todas las variantes.
  */
 const getEstados = async (req, res) => {
   const estado = String(req.query.estado || "").toUpperCase().trim();
@@ -31,21 +44,18 @@ const getEstados = async (req, res) => {
     const { rows } = await query(sql, params);
 
     const out = rows.map(r => {
-      const d = r.fecha_emision ? new Date(r.fecha_emision) : null;
-      const created_ms   = d ? d.getTime() : null;
-      const created_iso  = d ? d.toISOString() : null;
-      const created_date = d ? created_iso.slice(0, 10) : null;
+      const { createdISO, createdDate } = toDateStrings(r.fecha_emision);
 
       return {
         // Español
         numero: r.numero_documento,
         estado: r.estado_documento,
-        creado: created_ms,
+        creado: createdDate,          // ← STRING YYYY-MM-DD
 
         // Inglés
         number: r.numero_documento,
         status: r.estado_documento,
-        created: created_ms,
+        created: createdDate,         // ← STRING YYYY-MM-DD
 
         // Variantes
         numero_documento: r.numero_documento,
@@ -53,14 +63,12 @@ const getEstados = async (req, res) => {
         estado_documento: r.estado_documento,
         estadoDocumento: r.estado_documento,
 
-        createdAt: created_ms,
-        created_at: created_ms,
-        fecha_emision: r.fecha_emision,
-        fechaEmision: r.fecha_emision,
+        createdAt: createdDate,       // ← STRING YYYY-MM-DD
+        created_at: createdDate,      // ← STRING YYYY-MM-DD
+        fecha_emision: createdDate,   // ← STRING YYYY-MM-DD
+        fechaEmision: createdDate,
 
-        // Extras
-        created_iso,
-        created_date
+        created_iso: createdISO
       };
     });
 

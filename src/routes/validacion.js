@@ -4,13 +4,24 @@ import { query } from "../db.js";
 
 const router = Router();
 
+const toDateStrings = (dateVal) => {
+  if (!dateVal) {
+    return { createdISO: null, createdDate: null };
+  }
+  // Aseguramos que sea un objeto Date válido
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) {
+    return { createdISO: null, createdDate: null };
+  }
+  const iso = d.toISOString();        // 2025-10-15T00:00:00.000Z
+  const ymd = iso.slice(0, 10);       // 2025-10-15
+  return { createdISO: iso, createdDate: ymd };
+};
+
 /**
  * DUCA en PENDIENTE o EN_REVISION.
- * Devuelve claves en ES/EN y fechas en:
- *  - ISO completo           (created_iso)
- *  - YYYY-MM-DD             (created_date)
- *  - timestamp ms (number)  (created_ms)
- * Además duplica en: creado/created/createdAt/created_at/fecha_emision/fechaEmision
+ * Devuelve claves ES/EN y las fechas como STRING "YYYY-MM-DD"
+ * en: creado, created, createdAt, created_at, fecha_emision, fechaEmision.
  */
 const getValidaciones = async (_req, res) => {
   const sql = `
@@ -28,36 +39,32 @@ const getValidaciones = async (_req, res) => {
     const { rows } = await query(sql);
 
     const out = rows.map(r => {
-      const d = r.fecha_emision ? new Date(r.fecha_emision) : null;
-      const created_ms   = d ? d.getTime() : null;               // ← seguro para new Date(ms)
-      const created_iso  = d ? d.toISOString() : null;
-      const created_date = d ? created_iso.slice(0, 10) : null;  // YYYY-MM-DD
+      const { createdISO, createdDate } = toDateStrings(r.fecha_emision);
 
       return {
         // Español
         numero: r.numero_documento,
         estado: r.estado_documento,
-        creado: created_ms,
+        creado: createdDate,          // ← STRING YYYY-MM-DD
 
         // Inglés
         number: r.numero_documento,
         status: r.estado_documento,
-        created: created_ms,
+        created: createdDate,         // ← STRING YYYY-MM-DD
 
-        // Variantes comunes
+        // Variantes
         numero_documento: r.numero_documento,
         numeroDocumento: r.numero_documento,
         estado_documento: r.estado_documento,
         estadoDocumento: r.estado_documento,
 
-        createdAt: created_ms,
-        created_at: created_ms,
-        fecha_emision: r.fecha_emision,
-        fechaEmision: r.fecha_emision,
+        createdAt: createdDate,       // ← STRING YYYY-MM-DD
+        created_at: createdDate,      // ← STRING YYYY-MM-DD
+        fecha_emision: createdDate,   // ← STRING YYYY-MM-DD
+        fechaEmision: createdDate,
 
-        // Extras explícitos por si el front solo imprime strings
-        created_iso,
-        created_date
+        // Extras por si el front imprime ISO directamente
+        created_iso: createdISO
       };
     });
 
