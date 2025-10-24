@@ -6,31 +6,23 @@ const router = Router();
 
 /**
  * GET /duca/:numero
- * Devuelve el registro completo de la DUCA por su numero_documento.
- * Ajusta los nombres de columnas si en tu schema tienen otros nombres.
+ * Devuelve los campos exactos de la tabla DUCA:
+ *  - numero_documento, fecha_emision, pais_emisor, moneda, valor_aduana_total,
+ *    importador, exportador, transporte, estado_documento
  */
 router.get("/:numero", async (req, res) => {
   const numero = req.params.numero;
 
-  // ⚠️ Ajusta esta SELECT con los nombres reales de tus columnas.
-  // Debajo pongo lo más común según tu UI/formulario y capturas.
   const sql = `
     SELECT
       numero_documento              AS numero,
-      fecha_emision                 AS fecha_emision,    -- DATE
+      fecha_emision                 AS fecha_emision,
       pais_emisor                   AS pais_emisor,
       moneda                        AS moneda,
       valor_aduana_total            AS valor_aduana_total,
-
-      importador_nombre             AS importador_nombre,
-      importador_documento          AS importador_documento,
-
-      exportador_nombre             AS exportador_nombre,
-      exportador_documento          AS exportador_documento,
-
-      transporte_medio              AS transporte_medio,
-      transporte_placa              AS transporte_placa,
-
+      importador                    AS importador,
+      exportador                    AS exportador,
+      transporte                    AS transporte,
       estado_documento              AS estado
     FROM duca
     WHERE numero_documento = $1
@@ -44,45 +36,25 @@ router.get("/:numero", async (req, res) => {
     }
 
     const r = rows[0];
-
-    // Normalizamos fecha a string legible
+    // Normalizamos fecha a YYYY-MM-DD si es válida
     const d = r.fecha_emision ? new Date(r.fecha_emision) : null;
-    const created_date = d && !isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : null;
+    const fechaISO =
+      d && !isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : r.fecha_emision;
 
-    // Devolvemos plano y también con alias por compatibilidad
     res.json({
       numero: r.numero,
       estado: r.estado,
-
-      // fechas
-      creado: created_date,
-      created: created_date,
-      createdAt: created_date,
-      created_at: created_date,
-      fecha_emision: created_date,
-      fechaEmision: created_date,
-
-      // generales
+      fecha_emision: fechaISO,
       pais_emisor: r.pais_emisor,
       moneda: r.moneda,
       valor_aduana_total: r.valor_aduana_total,
-
-      // importador
-      importador_nombre: r.importador_nombre,
-      importador_documento: r.importador_documento,
-
-      // exportador
-      exportador_nombre: r.exportador_nombre,
-      exportador_documento: r.exportador_documento,
-
-      // transporte
-      transporte_medio: r.transporte_medio,
-      transporte_placa: r.transporte_placa
+      importador: r.importador,
+      exportador: r.exportador,
+      transporte: r.transporte
     });
   } catch (e) {
-    console.error("duca detail error:", e.message);
+    console.error("duca detail error:", e?.message || e);
     res.status(500).json({ error: true, message: "Error interno" });
-    return;
   }
 });
 
