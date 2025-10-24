@@ -9,10 +9,8 @@ import validacionRouter from "./routes/validacion.js";
 
 const app = express();
 
-// Render corre detrás de proxy (necesario si luego usas cookies)
 app.set("trust proxy", 1);
 
-// Orígenes permitidos (tu frontend y dev local)
 const ORIGINS = (process.env.CORS_ORIGINS || "")
   .split(",")
   .map(s => s.trim())
@@ -35,24 +33,20 @@ app.options("*", cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Healthcheck para probar fácil
 app.get("/health", (req, res) => {
   res.status(200).json({ ok: true, ts: new Date().toISOString() });
 });
 
-// Prefijo API
 app.use("/api/duca", ducaRouter);
 app.use("/api/estados", estadosRouter);
 app.use("/api/usuarios", usuariosRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/validacion", validacionRouter);
 
-// 404 JSON
 app.use((req, res) => {
   res.status(404).json({ error: true, message: "Not Found" });
 });
 
-// Errores JSON
 app.use((err, req, res, next) => {
   console.error("API error:", err);
   res.status(err.status || 500).json({

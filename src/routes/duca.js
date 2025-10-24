@@ -1,7 +1,6 @@
 import { Router } from "express";
 const router = Router();
 
-// Pendientes / En revisión (pantalla que te daba error)
 router.get("/pending", async (req, res) => {
   res.json({ items: [] });
 });
