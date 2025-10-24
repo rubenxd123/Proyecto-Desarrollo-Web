@@ -4,27 +4,25 @@ import { query } from "../db.js";
 
 const router = Router();
 
+const ALLOWED = new Set(["PENDIENTE","EN_REVISION","VALIDADA","RECHAZADA","ANULADA"]);
+
 /**
- * Lista de todos los DUCA con sus estados y fecha_emision como "creado".
- * Permite filtro opcional por ?estado=...
+ * Lista de DUCA con opción de ?estado=...
+ * Responde: Array de { number, status, created }
  */
 const getEstados = async (req, res) => {
-  const estado = (req.query.estado || "").toUpperCase().trim();
-  const allowed = ["PENDIENTE", "EN_REVISION", "VALIDADA", "RECHAZADA", "ANULADA"];
+  const estado = String(req.query.estado || "").toUpperCase().trim();
 
-  const whereSql = allowed.includes(estado)
-    ? `WHERE estado_documento = $1`
-    : ``;
-
-  const params = allowed.includes(estado) ? [estado] : [];
+  const where = ALLOWED.has(estado) ? `WHERE estado_documento = $1` : "";
+  const params = ALLOWED.has(estado) ? [estado] : [];
 
   const sql = `
     SELECT
-      numero_documento AS numero,
-      estado_documento AS estado,
-      fecha_emision    AS creado
+      numero_documento  AS "number",
+      estado_documento  AS "status",
+      fecha_emision     AS "created"
     FROM duca
-    ${whereSql}
+    ${where}
     ORDER BY fecha_emision DESC
     LIMIT 100;
   `;
@@ -38,7 +36,6 @@ const getEstados = async (req, res) => {
   }
 };
 
-// Rutas disponibles
 router.get("/", getEstados);
 router.get("/mis", getEstados);
 router.get("/mis-declaraciones", getEstados);

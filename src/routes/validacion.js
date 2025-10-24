@@ -5,29 +5,30 @@ import { query } from "../db.js";
 const router = Router();
 
 /**
- * Devuelve todas las DUCA en estado PENDIENTE o EN_REVISION.
- * Usa la columna fecha_emision como "creado" para mostrar en el frontend.
+ * DUCA en PENDIENTE o EN_REVISION
+ * Responde: Array de { number, status, created }
  */
 const getValidaciones = async (_req, res) => {
+  const sql = `
+    SELECT
+      numero_documento  AS "number",
+      estado_documento  AS "status",
+      fecha_emision     AS "created"
+    FROM duca
+    WHERE estado_documento IN ('PENDIENTE','EN_REVISION')
+    ORDER BY fecha_emision DESC
+    LIMIT 50;
+  `;
   try {
-    const { rows } = await query(`
-      SELECT
-        numero_documento AS numero,
-        estado_documento AS estado,
-        fecha_emision    AS creado
-      FROM duca
-      WHERE estado_documento IN ('PENDIENTE', 'EN_REVISION')
-      ORDER BY fecha_emision DESC
-      LIMIT 50;
-    `);
+    const { rows } = await query(sql, []);
     res.json(rows || []);
   } catch (e) {
     console.error("validacion error:", e.message);
+    // si hay error de BD, no rompas el front
     res.json([]);
   }
 };
 
-// Rutas disponibles
 router.get("/", getValidaciones);
 router.get("/pendientes", getValidaciones);
 router.get("/en-revision", getValidaciones);
