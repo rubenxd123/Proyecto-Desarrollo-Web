@@ -37,37 +37,54 @@ function validate(p) {
 
 /* POST /duca */
 router.post("/", async (req, res) => {
-  const p = normalize(req.body);
-  const errors = validate(p);
-  if (errors.length) return res.status(400).json({ error: errors.join("; ") });
+  try {
+    const p = normalize(req.body);
+    const errors = validate(p);
+    if (errors.length) return res.status(400).json({ error: errors.join("; ") });
 
-  const dup = await query("select 1 from duca where numero_documento=$1", [p.numero_documento]);
-  if (dup.rowCount) return res.status(409).json({ error: "Ya existe ese número de DUCA" });
+    const dup = await query(
+      "select 1 from duca where numero_documento=$1",
+      [p.numero_documento]
+    );
+    if (dup.rowCount) {
+      return res.status(409).json({ error: "Ya existe ese número de DUCA" });
+    }
 
-  const sql = `
-    insert into duca(
-      numero_documento, fecha_emision, pais_emisor, moneda, valor_aduana_total,
-      importador, exportador, transporte, mercancias, estado_documento
-    ) values (
-      $1, $2, $3, $4, $5,
-      $6::jsonb, $7::jsonb, $8::jsonb, $9::jsonb, 'PENDIENTE'
-    )
-    returning id, numero_documento, fecha_emision, estado_documento
-  `;
-  const vals = [
-    p.numero_documento,
-    p.fecha_emision,               // YYYY-MM-DD
-    p.pais_emisor,
-    p.moneda,
-    p.valor_aduana_total,
-    JSON.stringify(p.importador),
-    JSON.stringify(p.exportador),
-    JSON.stringify(p.transporte),
-    p.mercancias ? JSON.stringify(p.mercancias) : null,
-  ];
+    const sql = `
+      insert into duca(
+        numero_documento, fecha_emision, pais_emisor, moneda, valor_aduana_total,
+        importador, exportador, transporte, mercancias, estado_documento
+      )
+      values (
+        $1, $2, $3, $4, $5,
+        $6::jsonb, $7::jsonb, $8::jsonb, $9::jsonb, 'PENDIENTE'
+      )
+      returning numero_documento, fecha_emision, estado_documento
+    `;
+    const vals = [
+      p.numero_documento,
+      p.fecha_emision,               // YYYY-MM-DD
+      p.pais_emisor,
+      p.moneda,
+      p.valor_aduana_total,
+      JSON.stringify(p.importador),
+      JSON.stringify(p.exportador),
+      JSON.stringify(p.transporte),
+      p.mercancias ? JSON.stringify(p.mercancias) : null,
+    ];
 
-  const r = await query(sql, vals);
-  return res.status(201).json(r.rows[0]);
+    const r = await query(sql, vals);
+    const row = r.rows[0];
+    return res.status(201).json({
+      ok: true,
+      numero: row.numero_documento,
+      fecha_emision: row.fecha_emision,
+      estado: row.estado_documento,
+    });
+  } catch (e) {
+    console.error("POST /duca error:", e);
+    return res.status(500).json({ error: "Error interno" });
+  }
 });
 
 /* GET /duca/estados */
