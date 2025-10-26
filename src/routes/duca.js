@@ -4,38 +4,27 @@ import { query } from "../db.js";
 
 const router = Router();
 
-/* ---------- Helpers ---------- */
+/* Helpers */
 function pick(v, ...names) {
   for (const n of names) if (v && v[n] !== undefined) return v[n];
   return undefined;
 }
-
 function normalize(body = {}) {
-  // aceptamos camelCase o snake_case desde el front
   const numero_documento   = pick(body, "numero_documento", "numeroDocumento", "numero");
   const fecha_emision      = pick(body, "fecha_emision", "fechaEmision");
   const pais_emisor        = pick(body, "pais_emisor", "paisEmisor");
   const moneda             = body.moneda;
   const valor_aduana_total = Number(pick(body, "valor_aduana_total", "valorAduanaTotal"));
-
-  const importador = body.importador ?? {};
-  const exportador = body.exportador ?? {};
-  const transporte = body.transporte ?? {};
-  const mercancias = body.mercancias ?? null; // opcional
+  const importador         = body.importador ?? {};
+  const exportador         = body.exportador ?? {};
+  const transporte         = body.transporte ?? {};
+  const mercancias         = body.mercancias ?? null;
 
   return {
-    numero_documento,
-    fecha_emision,
-    pais_emisor,
-    moneda,
-    valor_aduana_total,
-    importador,
-    exportador,
-    transporte,
-    mercancias,
+    numero_documento, fecha_emision, pais_emisor, moneda, valor_aduana_total,
+    importador, exportador, transporte, mercancias,
   };
 }
-
 function validate(p) {
   const errs = [];
   if (!p.numero_documento) errs.push("numero_documento es requerido");
@@ -46,7 +35,7 @@ function validate(p) {
   return errs;
 }
 
-/* ---------- POST /duca (registrar) ---------- */
+/* POST /duca */
 router.post("/", async (req, res) => {
   const p = normalize(req.body);
   const errors = validate(p);
@@ -67,7 +56,7 @@ router.post("/", async (req, res) => {
   `;
   const vals = [
     p.numero_documento,
-    p.fecha_emision,         // YYYY-MM-DD
+    p.fecha_emision,               // YYYY-MM-DD
     p.pais_emisor,
     p.moneda,
     p.valor_aduana_total,
@@ -81,7 +70,7 @@ router.post("/", async (req, res) => {
   return res.status(201).json(r.rows[0]);
 });
 
-/* ---------- GET /duca/estados ---------- */
+/* GET /duca/estados */
 router.get("/estados", async (_req, res) => {
   const r = await query(`
     select
@@ -94,10 +83,9 @@ router.get("/estados", async (_req, res) => {
   res.json(r.rows);
 });
 
-/* ---------- GET /duca/:numero ---------- */
+/* GET /duca/:numero */
 router.get("/:numero", async (req, res) => {
   const numero = req.params.numero;
-
   const sql = `
     SELECT
       numero_documento              AS numero,
@@ -113,12 +101,10 @@ router.get("/:numero", async (req, res) => {
     WHERE numero_documento = $1
     LIMIT 1;
   `;
-
   try {
     const { rows } = await query(sql, [numero]);
-    if (rows.length === 0) {
-      return res.status(404).json({ error: true, message: "No encontrado" });
-    }
+    if (rows.length === 0) return res.status(404).json({ error: true, message: "No encontrado" });
+
     const r = rows[0];
     const d = r.fecha_emision ? new Date(r.fecha_emision) : null;
     const fechaISO = d && !isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : r.fecha_emision;
@@ -132,7 +118,7 @@ router.get("/:numero", async (req, res) => {
       valor_aduana_total: r.valor_aduana_total,
       importador: r.importador,
       exportador: r.exportador,
-      transporte: r.transporte
+      transporte: r.transporte,
     });
   } catch (e) {
     console.error("duca detail error:", e?.message || e);
